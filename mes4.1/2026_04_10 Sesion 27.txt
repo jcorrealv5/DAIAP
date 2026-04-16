@@ -1,0 +1,69 @@
+**************************************************************************************************************************
+Modelos de Actuacion, IA Generativa y el Futuro del Software en IA 
+**************************************************************************************************************************
+Modelo 1
+Data Entrada (<Fecha) => Entrenamiento Modelo  => Salida (Pesos) => Prediccion Limitada (<Fecha)
+
+Modelo 2 (Reinforcement Learning)
+Dia 1 (<Fecha) => Entrenamiento Modelo => Salida (Pesos) => Experiencia 1
+Dia 2 (Salida Dia1) => Entrenamiento Modelo => Salida (Pesos) => Experiencia 2
+Dia 3 (Salida Dia2) => Entrenamiento Modelo => Salida (Pesos) => Experiencia 3
+
+Scripts Python => Web Scrapping (Selenium) => RPA (AnyRobot) => IA Agentica (Claude Code)
+Seguridad
+1. OWASP => Seguridad Aplicaciones y Servicios Web
+2. OWASP LLM
+3. OWASP IA Agentica
+4. OWASP ML
+
+Tipos de IA Generativa
+1. VAE
+2. GAN
+3. Autoregressive
+4. Difussion Models
+5. Flow Matching
+6. Drifting Models
+
+IA Generativa
+1. Texto => Autoregressive
+2. Imagen => GAN, ViT
+3. Audio => Flow Matching
+4. Video => Flow Matching
+
+Seminarios IA
+1. Seguridad IA: IA, ML, LLMs, Agentes
+2. Audio: Recognition (ASR, STT) & Synthesis (TTS, Voice Cloning)
+
+Futuro Desarrollo en un Mundo IA
+HW CPU => SO (Kernel Apps APIs)  => FrameWork Desarrollo (Librerias) => App Windows, App Web, App Mobile (GUI)
+HW GPU + TPU => Futuro: SO (Kernel Modelos IA) => FrameWork IA (Librerias) => App IA (VUI)
+Empresas
+1. Microsoft: GPU CUDA / TPU
+2. Nvidia: GPU CUDA
+3. Google: TPU
+
+
+**************************************************************************************************************************
+Capitulo 5: Algoritmos de Regresion
+**************************************************************************************************************************
+1. Definicion:
+En estadística, una Regresion es un modelo para predecir el valor de una variable basado en otras.
+
+2. Tipos de Regresion:
+
+2.1. Lineal: Los datos se ajustan a una function lineal
+Una sola variable de entrada: y = aX + b
+Varias varables de entrada: y = a1X1 + a2X2 + .... + anXn + b
+Donde: a1,a2,a3,...,a5 son los Coeficientes
+b: Interseccion de la linea
+
+Ejemplo: Predecir 2064 Precios de Casas
+Entradas (X) = ['MedInc', 'HouseAge', 'AveRooms', 'AveBedrms', 'Population', 'AveOccup', 'Latitude', 'Longitude']
+Coeficientes = [ 0.433, 0.0094, -0.1038, 0.6183, -0.0000, -0.0036, -0.4252, -0.4381]
+Intercepcion (b) = -36.747033490731404
+Salidas (y) = [ 1.68703917, 1.77641538, -0.01258258, ...  ,1.16165353, 2.55681084, 3.33004626]
+Sample1 = [0.8246, 18, 4.65, 0.98333333, 188, 3.13333333, 34.55, -117.32]
+Sample2 = [3.1827, 21, 6.24193548, 1.51612903, 724, 3.89247312, 33.88, -115.58]
+
+2.2. No Lineal
+

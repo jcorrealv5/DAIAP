@@ -1,0 +1,232 @@
+Correcciones recomendadas para mejorar la deteccion de sexo y raza
+==================================================================
+
+Contexto
+--------
+Los archivos actuales entrenan y usan un modelo CNN para clasificar sexo y raza con UTKFace.
+Para que el modelo prediga mejor, el entrenamiento y la inferencia deben usar el mismo
+preprocesamiento, las mismas convenciones de etiquetas y las funciones de perdida correctas.
+
+
+1. Usar el mismo formato de color en entrenamiento e inferencia
+--------------------------------------------------------------
+OpenCV lee imagenes en formato BGR, pero normalmente torchvision/PIL trabajan en RGB.
+Si el modelo entrena con BGR y luego Demo34.py predice con RGB, el modelo vera los canales
+en orden distinto y clasificara peor.
+
+Correccion recomendada en modDL.py:
+
+    imagen = cv2.imread(archivo)
+    imagen = cv2.cvtColor(imagen, cv2.COLOR_BGR2RGB)
+
+Luego entrenar e inferir siempre con RGB.
+
+
+2. Corregir la salida de raza del modelo
+----------------------------------------
+En Demo33.py se usa:
+
+    criterioCat = nn.CrossEntropyLoss()
+
+CrossEntropyLoss espera logits puros. Por eso, en modDL.py no se debe aplicar log_softmax
+antes de retornar la salida de raza.
+
+Cambiar:
+
+    raza = F.log_softmax(self.FC3B(x), dim=1)
+
+Por:
+
+    raza = self.FC3B(x)
+
+
+3. Corregir la evaluacion de sexo en Demo33.py
+----------------------------------------------
+Si se entrena sexo con:
+
+    criterioBin = nn.BCEWithLogitsLoss()
+
+entonces y_pred_sexo es un logit, no una probabilidad. No se debe comparar directamente con 0.5.
+
+Cambiar:
+
+    predicSexo = (y_pred_sexo > 0.5)
+
+Por:
+
+    predicSexo = (torch.sigmoid(y_pred_sexo) > 0.5)
+
+Alternativa equivalente si quieres trabajar directamente con logits:
+
+    predicSexo = (y_pred_sexo > 0)
+
+
+4. Corregir la inferencia de sexo en Demo34.py
+----------------------------------------------
+Demo34.py tambien debe convertir el logit de sexo a probabilidad con sigmoid.
+
+Usar:
+
+    probSexo = torch.sigmoid(y_pred_sexo).item()
+    predicSexo = int(probSexo >= UMBRAL_MUJER)
+
+Con UTKFace la convencion normal es:
+
+    0 = Hombre
+    1 = Mujer
+
+Por eso:
+
+    sexo = "Mujer" if predicSexo == 1 else "Hombre"
+
+
+5. Ajustar el umbral para mujer
+-------------------------------
+Si muchos hombres salen como mujeres, no conviene usar 0.50 como umbral.
+Se puede exigir mas confianza para clasificar como mujer:
+
+    UMBRAL_MUJER = 0.65
+
+Interpretacion:
+
+    probSexo >= 0.65  -> Mujer
+    probSexo < 0.65   -> Hombre
+
+Si todavia hay muchos hombres como mujeres, probar:
+
+    UMBRAL_MUJER = 0.70
+
+Si muchas mujeres salen como hombres, bajar a:
+
+    UMBRAL_MUJER = 0.60
+
+
+6. Convertir predicciones a valores Python
+------------------------------------------
+Evitar comparar tensores directamente dentro de if o expresiones de texto.
+
+Para sexo:
+
+    probSexo = torch.sigmoid(y_pred_sexo).item()
+    predicSexo = int(probSexo >= UMBRAL_MUJER)
+
+Para raza:
+
+    predicRaza = int(y_pred_raza.argmax(1).item())
+
+
+7. Mostrar confianza de raza
+----------------------------
+Para entender si el modelo esta seguro de la raza, usar softmax:
+
+    probRaza = torch.softmax(y_pred_raza, dim=1)
+    confianzaRaza, predicRazaTensor = probRaza.max(1)
+    predicRaza = int(predicRazaTensor.item())
+
+Si confianzaRaza es baja, mostrar:
+
+    Raza?
+
+
+8. No descartar muestras en test
+--------------------------------
+En Demo33.py, el DataLoader de test debe evaluar todas las imagenes.
+
+Usar:
+
+    loaderTest = DataLoader(dstTest, batch_size=hpTamanoLote, drop_last=False, shuffle=False)
+
+No usar drop_last=True en test porque descarta las ultimas imagenes si no completan un batch.
+
+
+9. Balancear clases de sexo y raza
+----------------------------------
+Si el dataset tiene muchas mas muestras de una clase, el modelo se sesga.
+Conviene contar clases por sexo y raza.
+
+Para sexo se puede usar:
+
+    criterioBin = nn.BCEWithLogitsLoss(pos_weight=pos_weight_mujer)
+
+Para raza se puede usar:
+
+    criterioCat = nn.CrossEntropyLoss(weight=pesos_raza)
+
+Esto ayuda si hay, por ejemplo, muchas mas imagenes de hombres que de mujeres, o una raza
+mucho mas frecuente que las demas.
+
+
+10. Mejorar deteccion de rostros en Demo34.py
+---------------------------------------------
+Para reducir falsos positivos del Haar Cascade, detectar sobre gris ecualizado:
+
+    imagen_gris = cv2.cvtColor(imagen, cv2.COLOR_BGR2GRAY)
+    imagen_gris = cv2.equalizeHist(imagen_gris)
+    caras = clasificador.detectMultiScale(
+        imagen_gris,
+        scaleFactor=1.05,
+        minNeighbors=5,
+        minSize=(50, 50),
+        flags=cv2.CASCADE_SCALE_IMAGE
+    )
+
+Si hay demasiados falsos positivos, subir:
+
+    minNeighbors = 6
+
+Si no detecta caras, bajar:
+
+    minNeighbors = 4
+
+
+11. Mantener entrenamiento e inferencia consistentes
+----------------------------------------------------
+Demo33.py y Demo34.py deben usar:
+
+    - mismo size de imagen: 156 x 156
+    - misma normalizacion: mean=[0.5, 0.5, 0.5], std=[0.5, 0.5, 0.5]
+    - mismo orden de color: RGB
+    - misma arquitectura: CNN_6C3P3FC2S
+    - salida de sexo como logit + sigmoid al predecir
+    - salida de raza como logits + argmax/softmax al predecir
+
+
+12. Reentrenar despues de corregir modDL.py
+-------------------------------------------
+Si se cambia el preprocesamiento del dataset, especialmente BGR a RGB, se debe reentrenar.
+Un modelo viejo entrenado con BGR puede seguir fallando aunque Demo34.py este corregido.
+
+Secuencia recomendada:
+
+    1. Corregir modDL.py.
+    2. Corregir Demo33.py.
+    3. Ejecutar:
+
+           python Demo33.py
+
+    4. Tomar el nuevo archivo .pt generado.
+    5. Actualizar Demo34.py:
+
+           ARCHIVO_MODELO = "CNN_6C3P3FC2S_SexoRaza_x.xxxx.pt"
+
+    6. Ejecutar:
+
+           python Demo34.py
+
+
+Resumen de prioridades
+----------------------
+Prioridad 1:
+    - Entrenar e inferir en RGB.
+    - Raza debe devolver logits puros.
+    - Sexo debe evaluarse con sigmoid.
+
+Prioridad 2:
+    - Ajustar UMBRAL_MUJER.
+    - Mostrar confianza de sexo y raza.
+    - No descartar muestras en test.
+
+Prioridad 3:
+    - Balancear clases.
+    - Ajustar Haar Cascade para menos falsos positivos.
+    - Optimizar GPU si el entrenamiento es lento.
